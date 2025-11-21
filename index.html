@@ -1,136 +1,647 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wrestling Tournament Scheduler Prototype</title>
-    <style>
-        body { font-family: Arial; margin: 20px; background: #f5f5f5;}
-        h1 { text-align: center; }
-        .section { background: white; padding: 15px; margin: 15px 0; border-radius: 10px; }
-        .mat-box { background: #fff; padding: 10px; margin-top: 10px; border: 1px solid #ccc; border-radius: 8px;}
-        .clock { font-size: 22px; font-weight: bold; margin-top: 5px; }
-        .btn { padding: 6px 10px; cursor: pointer; }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Wrestle Deck — Prototype (Director / Coach / Mat)</title>
+
+<!-- Styles: professional + dark arena mix -->
+<style>
+:root{
+  --bg:#0f1720; --panel:#0b1320; --card:#0e1b2b; --muted:#9aa6b2; --accent:#00b4d8; --accent-2:#7b2cbf;
+  --success:#28c76f; --danger:#ff6b6b; --glass: rgba(255,255,255,0.03);
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:linear-gradient(180deg,#061221 0%, #071426 100%);color:#e6eef6;min-height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:linear-gradient(90deg,var(--panel),rgba(11,19,32,0.8));border-bottom:1px solid rgba(255,255,255,0.03)}
+.brand{display:flex;align-items:center;gap:14px}
+.brand-logo{width:48px;height:48px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:flex;align-items:center;justify-content:center;font-weight:700;color:#021121}
+.brand h1{margin:0;font-size:18px}
+.header .nav{display:flex;gap:8px}
+.btn{background:var(--accent);color:#001a1f;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;font-weight:600}
+.btn.secondary{background:transparent;color:var(--accent);border:1px solid rgba(255,255,255,0.06)}
+.container{display:grid;grid-template-columns:320px 1fr 360px;gap:18px;padding:18px}
+.panel{background:var(--card);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.03)}
+.small{font-size:13px;color:var(--muted)}
+.section-title{font-size:14px;margin-bottom:8px;color:#d8f3ff}
+.input,select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:inherit;margin-top:8px}
+.row{display:flex;gap:8px;align-items:center}
+.list{max-height:300px;overflow:auto;padding:6px}
+.match-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:10px;border-radius:10px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.02)}
+.mat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.timer{font-size:20px;font-weight:800;color:var(--accent)}
+.score{font-size:20px;font-weight:800}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.small-btn{padding:6px 8px;border-radius:8px;border:0;background:rgba(255,255,255,0.03);color:inherit;cursor:pointer}
+.danger{background:linear-gradient(90deg,var(--danger),#ff8f8f);color:#300}
+.ok{background:linear-gradient(90deg,var(--success),#6ef0a2);color:#042a0d}
+
+.footer{padding:12px;color:var(--muted);text-align:center}
+.badge{background:rgba(255,255,255,0.03);padding:4px 8px;border-radius:999px;color:var(--muted)}
+.input-inline{display:flex;gap:8px}
+.hidden{display:none}
+
+/* Responsive */
+@media (max-width:1100px){ .container{grid-template-columns:1fr; padding:12px} .header{flex-direction:column;align-items:flex-start;gap:8px} }
+</style>
 </head>
 <body>
 
-<h1>Wrestling Scheduler Prototype</h1>
-
-<!-- TEAM + WRESTLER INPUT -->
-<div class="section">
-    <h2>Team & Wrestler Entry</h2>
-    <input id="teamName" placeholder="Team Name">
-    <button class="btn" onclick="addTeam()">Add Team</button>
-    <div id="teamList"></div>
-</div>
-
-<!-- MATCH SCHEDULER -->
-<div class="section">
-    <h2>Match Scheduler</h2>
-    <input id="w1" placeholder="Wrestler 1">
-    <input id="w2" placeholder="Wrestler 2">
-    <input id="mat" placeholder="Mat #">
-    <button class="btn" onclick="scheduleMatch()">Schedule Match</button>
-
-    <h3>Scheduled Matches</h3>
-    <div id="matchList"></div>
-</div>
-
-<!-- SCOREBOARD -->
-<div class="section">
-    <h2>Scoreboard</h2>
-    <input id="scoreW1" placeholder="Wrestler 1">
-    <input id="scoreW2" placeholder="Wrestler 2">
+<div class="header">
+  <div class="brand">
+    <div class="brand-logo">WD</div>
     <div>
-        <button class="btn" onclick="score(1)">+1 W1</button>
-        <button class="btn" onclick="score(2)">+1 W2</button>
+      <h1>Wrestle Deck — Prototype</h1>
+      <div class="small">Director • Coaches • Mat Officials — CIF rules integrated</div>
     </div>
-    <div id="scoreDisplay">Score: 0 - 0</div>
+  </div>
+
+  <div class="nav">
+    <button class="btn" id="nav-director">Director</button>
+    <button class="btn secondary" id="nav-coach">Coach</button>
+    <button class="btn secondary" id="nav-mat">Mat Official</button>
+    <button class="btn secondary" id="nav-public">Public</button>
+  </div>
 </div>
 
-<!-- MATS + COUNTDOWN CLOCKS -->
-<div class="section">
-    <h2>Live Mats</h2>
-    <button class="btn" onclick="addMat()">Add Mat</button>
-    <div id="matArea"></div>
+<div class="container">
+  <!-- LEFT: Director / controls -->
+  <div class="panel" id="left-panel">
+    <div class="section-title">Event Settings</div>
+    <label>Start Time</label>
+    <input id="startTime" class="input" type="time" value="09:00">
+    <div class="input-inline" style="margin-top:8px">
+      <input id="numMats" class="input" type="number" min="1" value="4">
+      <input id="defaultDur" class="input" type="number" min="1" value="6">
+    </div>
+    <div class="input-inline" style="margin-top:8px">
+      <input id="turnaroundSec" class="input" type="number" min="0" value="60">
+      <input id="warmupMin" class="input" type="number" min="0" value="5">
+    </div>
+    <label style="margin-top:8px">Min rest (minutes)</label>
+    <input id="minRest" class="input" type="number" min="0" value="30">
+    <label style="margin-top:8px">Max matches / day</label>
+    <input id="maxMatches" class="input" type="number" min="1" value="6">
+    <div style="margin-top:10px" class="row">
+      <button class="btn" id="generateBtn">Generate Schedule</button>
+      <button class="btn secondary" id="exportCsvBtn">Export CSV</button>
+    </div>
+
+    <hr style="border:1px solid rgba(255,255,255,0.02);margin:12px 0">
+
+    <div class="section-title">Teams & Rosters</div>
+    <input id="teamInput" class="input" placeholder="Team name">
+    <div class="row">
+      <input id="wrestlerInput" class="input" placeholder="Wrestler name (First Last)">
+    </div>
+    <div class="row" style="margin-top:6px">
+      <input id="gradeInput" class="input" placeholder="Grade (optional)">
+      <input id="weightInput" class="input" placeholder="Weight class">
+    </div>
+    <div class="row">
+      <button class="btn" id="addWrestlerBtn">Add Wrestler to Team</button>
+      <button class="btn secondary" id="delWrestlerBtn">Remove Wrestler</button>
+    </div>
+
+    <div style="margin-top:10px" class="list" id="teamsList"></div>
+
+    <hr style="border:1px solid rgba(255,255,255,0.02);margin:12px 0">
+
+    <div class="section-title">Pending Matches</div>
+    <div class="row">
+      <input id="matchLabel" class="input" placeholder="Label (A1)">
+    </div>
+    <div class="row">
+      <select id="selW1" class="input"></select>
+      <select id="selW2" class="input"></select>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <input id="matchDur" class="input" placeholder="Duration (min)">
+      <select id="selMatAssign" class="input"></select>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" id="addMatchBtn">Add Match</button>
+      <button class="btn secondary" id="clearPendingBtn">Clear Pending</button>
+    </div>
+
+    <div class="list" id="pendingMatches"></div>
+
+  </div>
+
+  <!-- CENTER: Live board -->
+  <div class="panel" id="center-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div class="section-title">Live Board</div><div class="small">Click a match card to control</div></div>
+      <div><span class="badge" id="statusBadge">Idle</span></div>
+    </div>
+
+    <div style="margin-top:12px" id="scheduleList"></div>
+
+    <div style="margin-top:16px" class="section-title">Mat Panels</div>
+    <div id="matGrid" class="mat-grid" style="margin-top:10px"></div>
+
+  </div>
+
+  <!-- RIGHT: Mat Official view / details -->
+  <div class="panel" id="right-panel">
+    <div class="section-title">Mat Official — Controls</div>
+    <label>Choose Mat</label>
+    <select id="matSelectRight" class="input"></select>
+
+    <div id="matDetail" style="margin-top:12px"></div>
+
+    <hr style="border:1px solid rgba(255,255,255,0.02);margin:12px 0">
+
+    <div class="section-title">Quick Utilities</div>
+    <div class="row">
+      <button class="btn" id="addMatBtn">Add Mat</button>
+      <button class="btn danger" id="removeMatBtn">Delete Selected Mat</button>
+    </div>
+    <div style="margin-top:8px" class="row">
+      <button class="btn" id="resetBtn">Reset All (clear storage)</button>
+      <button class="btn secondary" id="seedBtn">Seed Sample</button>
+    </div>
+
+    <div style="margin-top:12px" class="small">Tip: Use 'Seed Sample' to load demo wrestlers and matches for testing.</div>
+  </div>
 </div>
 
+<div class="footer">Prototype — stores data in your browser. Want this hosted? I can give steps to deploy.</div>
+
+<!-- SCRIPT: logic -->
 <script>
-let teams = [];
-let matches = [];
-let score1 = 0;
-let score2 = 0;
-let mats = 0;
+/* Wrestle Deck Prototype - single file app
+   - localStorage persistence
+   - scheduling engine (greedy heaps + CIF rest)
+   - per-mat timers (start/pause/reset)
+   - full scoring controls
+*/
 
-// ADD TEAM
-function addTeam() {
-    let t = document.getElementById("teamName").value;
-    if (!t) return;
-    teams.push(t);
-    document.getElementById("teamList").innerHTML += `<div>✔ ${t}</div>`;
-    document.getElementById("teamName").value = "";
+const STORAGE_KEY = "wrestle_deck_v2";
+
+// --- state
+let state = {
+  meta: { startTime: "09:00", mats: 4, defaultDur: 6, turnaroundSec: 60, warmupMin: 5, minRestMin: 30, maxMatches: 6},
+  teams: {}, // teamName -> [wrestler objects]
+  pending: [], // pending matches
+  schedule: [], // scheduled matches
+  mats: [], // array of mat objects {id,label,availableAt}
+  ids: {w:0, m:0}
+};
+
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function load(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(raw) state = JSON.parse(raw);
+  ensureDefaults();
+}
+function ensureDefaults(){
+  if(!state.meta) state.meta = { startTime:"09:00", mats:4, defaultDur:6, turnaroundSec:60, warmupMin:5, minRestMin:30, maxMatches:6};
+  if(!state.teams) state.teams = {};
+  if(!Array.isArray(state.pending)) state.pending = [];
+  if(!Array.isArray(state.schedule)) state.schedule = [];
+  if(!Array.isArray(state.mats)) {
+    state.mats = [];
+    for(let i=1;i<=state.meta.mats;i++) state.mats.push({id:i,label:"Mat "+i});
+  }
+}
+load();
+
+// --- UI bindings
+const $ = id=>document.getElementById(id);
+const formatTimeHM = iso=>{
+  if(!iso) return "-";
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+}
+const formatClock = seconds=>{
+  let m = Math.floor(seconds/60), s = seconds%60;
+  return `${m}:${s<10?'0'+s:s}`;
 }
 
-// SCHEDULE MATCH
-function scheduleMatch() {
-    let w1 = document.getElementById("w1").value;
-    let w2 = document.getElementById("w2").value;
-    let mat = document.getElementById("mat").value;
+// --- Navigation (simple)
+$('nav-director').onclick = ()=>{ /* focus director (left panel already visible) */ window.scrollTo({top:0,behavior:'smooth'}); };
+$('nav-coach').onclick = ()=>{ alert('Coach panel is on left; add team name then wrestlers.'); };
+$('nav-mat').onclick = ()=>{ $('matSelectRight').focus(); };
+$('nav-public').onclick = ()=>{ window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'}); };
 
-    if (!w1 || !w2 || !mat) return;
+// --- Teams & Roster
+function renderTeams(){
+  let html = "";
+  for(const t of Object.keys(state.teams)){
+    html += `<div style="padding:8px;border-radius:8px;margin-bottom:6px;background:rgba(255,255,255,0.02)"><strong>${t}</strong> <span class="small">(${state.teams[t].length})</span><br>`;
+    html += state.teams[t].map(w=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0"><div>${w.name} <small class="small">[${w.weight || ''}]</small></div><div><button class="small-btn" onclick="removeWrestler('${t}','${w.id}')">Remove</button></div></div>`).join("");
+    html += `</div>`;
+  }
+  $('teamsList').innerHTML = html || '<div class="small">No teams added yet.</div>';
+  refreshWrestlerSelects();
+}
+$('addWrestlerBtn').onclick = ()=>{
+  const team = $('teamInput').value.trim();
+  const name = $('wrestlerInput').value.trim();
+  const grade = $('gradeInput').value.trim();
+  const weight = $('weightInput').value.trim();
+  if(!team || !name){ alert('Enter team and wrestler name'); return; }
+  if(!state.teams[team]) state.teams[team]=[];
+  state.ids.w = (state.ids.w||0)+1;
+  state.teams[team].push({id: 'w'+state.ids.w, name, grade, weight});
+  $('wrestlerInput').value=''; $('gradeInput').value=''; $('weightInput').value='';
+  save(); renderTeams();
+};
+$('delWrestlerBtn').onclick = ()=>{ let team = prompt('Team name to remove from?'); let wid = prompt('Exact wrestler id (copy from list)'); if(team && wid) removeWrestler(team,wid); };
 
-    matches.push({ w1, w2, mat });
-
-    document.getElementById("matchList").innerHTML += `
-        <div>Match: ${w1} vs ${w2} — Mat ${mat}</div>
-    `;
-
-    document.getElementById("w1").value = "";
-    document.getElementById("w2").value = "";
-    document.getElementById("mat").value = "";
+function removeWrestler(team, wid){
+  if(!state.teams[team]) return;
+  state.teams[team] = state.teams[team].filter(w=>w.id !== wid);
+  save(); renderTeams(); renderPending(); renderSchedule();
 }
 
-// SCOREBOARD
-function score(who) {
-    if (who === 1) score1++;
-    if (who === 2) score2++;
-    document.getElementById("scoreDisplay").innerHTML = `Score: ${score1} - ${score2}`;
+function refreshWrestlerSelects(){
+  const arr = [];
+  for(const t in state.teams) for(const w of state.teams[t]) arr.push(`${w.name} (${t})|${w.id}`);
+  const fill = selid=>{
+    const sel = $(selid); sel.innerHTML = '<option value="">Select...</option>';
+    arr.forEach(v=>{
+      const [label,id] = v.split('|');
+      const opt = document.createElement('option'); opt.value = id; opt.textContent = label; sel.appendChild(opt);
+    });
+  };
+  fill('selW1'); fill('selW2');
+  // mat assign
+  const matSel = $('selMatAssign'); matSel.innerHTML='';
+  state.mats.forEach(m=>{ const o=document.createElement('option'); o.value=m.id; o.textContent=m.label; matSel.appendChild(o); });
+  // right select
+  const rightSel = $('matSelectRight'); rightSel.innerHTML=''; state.mats.forEach(m=>{ rightSel.appendChild(new Option(m.label,m.id)); });
 }
 
-// ADD MAT WITH CLOCK
-function addMat() {
-    mats++;
-    let id = "clock" + mats;
+// --- Pending matches
+$('addMatchBtn').onclick = ()=>{
+  const label = $('matchLabel').value.trim() || ('M'+(state.pending.length+1));
+  const w1id = $('selW1').value, w2id = $('selW2').value;
+  const dur = parseInt($('matchDur').value) || state.meta.defaultDur;
+  const matAssign = parseInt($('selMatAssign').value) || null;
+  if(!w1id || !w2id) { alert('Choose both wrestlers'); return; }
+  if(w1id===w2id) { alert('Wrestlers must be different'); return; }
+  const w1 = findWrestlerById(w1id), w2 = findWrestlerById(w2id);
+  state.pending.push({id:'p'+(state.pending.length+1),label,w1id,w2id,w1name:w1.name+' ('+w1.team+')',w2name:w2.name+' ('+w2.team+')',duration:dur,matAssign});
+  $('matchLabel').value=''; $('matchDur').value='';
+  save(); renderPending();
+};
+$('clearPendingBtn').onclick = ()=>{ if(confirm('Clear pending matches?')){ state.pending=[]; save(); renderPending(); } };
 
-    document.getElementById("matArea").innerHTML += `
-        <div class="mat-box">
-            <h3>Mat ${mats}</h3>
-            <div id="${id}" class="clock">Clock: 6:00</div>
-            <button class="btn" onclick="startClock('${id}')">Start</button>
-            <button class="btn" onclick="resetClock('${id}')">Reset</button>
-        </div>
-    `;
+function findWrestlerById(id){
+  for(const t in state.teams) for(const w of state.teams[t]) if(w.id===id) return {...w,team:t};
+  return null;
+}
+function renderPending(){
+  if(state.pending.length===0){ $('pendingMatches').innerHTML='<div class="small">No pending matches</div>'; return; }
+  $('pendingMatches').innerHTML = state.pending.map(m=>`<div class="match-card"><strong>${m.label}</strong> — ${m.w1name} vs ${m.w2name} — ${m.duration}m ${m.matAssign?('• Mat '+m.matAssign):''}
+      <div style="margin-top:6px"><button class="small-btn" onclick="removePending('${m.id}')">Delete</button></div></div>`).join('');
+}
+function removePending(id){ state.pending = state.pending.filter(p=>p.id!==id); save(); renderPending(); }
+
+// --- Mats management
+$('addMatBtn').onclick = ()=>{ state.ids.m = (state.ids.m||state.mats.length)+1; const label = 'Mat '+(state.mats.length+1); state.mats.push({id: state.ids.m,label}); save(); refreshWrestlerSelects(); renderSchedule(); };
+$('removeMatBtn').onclick = ()=>{ const sel = $('matSelectRight').value; if(!sel) return alert('choose mat'); if(!confirm('Delete mat '+sel+'? This will unassign scheduled matches on that mat.')) return; state.mats = state.mats.filter(m=>m.id!=sel); // unassign matches
+  state.schedule.forEach(s=>{ if(s.mat==sel){ s.mat = null; } }); save(); refreshWrestlerSelects(); renderSchedule(); };
+
+// --- Scheduling engine (greedy heap with min-rest)
+function generateSchedule(){
+  // read meta controls
+  state.meta.startTime = $('startTime').value || state.meta.startTime;
+  state.meta.defaultDur = parseInt($('defaultDur').value) || state.meta.defaultDur;
+  state.meta.turnaroundSec = parseInt($('turnaroundSec').value) || state.meta.turnaroundSec;
+  state.meta.warmupMin = parseInt($('warmupMin').value) || state.meta.warmupMin;
+  state.meta.minRestMin = parseInt($('minRest').value) || state.meta.minRestMin;
+  state.meta.maxMatches = parseInt($('maxMatches').value) || state.meta.maxMatches;
+
+  // Prepare matches to schedule = pending + existing unscheduled?
+  const toSchedule = state.pending.map(p=>({ ...p }));
+  if(toSchedule.length===0){ alert('No pending matches to schedule'); return; }
+
+  // Build heap of mats available at start time
+  const startParts = state.meta.startTime.split(':').map(Number);
+  const today = new Date(); today.setHours(startParts[0], startParts[1],0,0);
+  const heap = [];
+  const mats = state.mats.length>0 ? state.mats : [{id:1,label:'Mat 1'}];
+  mats.forEach(m=> heapPush(heap,{avail: today.getTime(), mat:m.id}));
+
+  // last end per wrestler (ms) and counts
+  const lastEnd = {};
+  const counts = {};
+  // preload counts from today's scheduled matches
+  const todayISO = (new Date()).toISOString().slice(0,10);
+  state.schedule.forEach(s=>{
+    if(s.scheduled && s.scheduled.slice(0,10)===todayISO){
+      counts[s.w1id] = (counts[s.w1id]||0)+1;
+      counts[s.w2id] = (counts[s.w2id]||0)+1;
+    }
+  });
+
+  const scheduledNew = [];
+
+  for(const item of toSchedule){
+    const w1id = item.w1id, w2id = item.w2id;
+    counts[w1id] = counts[w1id]||0; counts[w2id] = counts[w2id]||0;
+    if(counts[w1id]+1 > state.meta.maxMatches) { alert('Max matches/day exceeded for ' + item.w1name); return; }
+    if(counts[w2id]+1 > state.meta.maxMatches) { alert('Max matches/day exceeded for ' + item.w2name); return; }
+    // pop earliest mat
+    const slot = heapPop(heap);
+    let startMs = slot.avail;
+    if(lastEnd[w1id]) startMs = Math.max(startMs, lastEnd[w1id] + state.meta.minRestMin*60000);
+    if(lastEnd[w2id]) startMs = Math.max(startMs, lastEnd[w2id] + state.meta.minRestMin*60000);
+    // enforce any mat assignment if provided
+    const matChosen = item.matAssign || slot.mat;
+    const scheduledStart = new Date(startMs).toISOString();
+    const dur = item.duration || state.meta.defaultDur;
+    const endMs = startMs + dur*60000;
+    const nextAvail = endMs + (state.meta.turnaroundSec||60)*1000;
+    // update lastEnd & counts
+    lastEnd[w1id] = endMs; lastEnd[w2id] = endMs;
+    counts[w1id]++; counts[w2id]++;
+    scheduledNew.push({
+      id: 's'+(state.schedule.length + scheduledNew.length +1),
+      label: item.label,
+      w1id: item.w1id, w2id: item.w2id,
+      w1name: item.w1name, w2name: item.w2name,
+      duration: dur,
+      mat: matChosen,
+      scheduled: scheduledStart,
+      originalScheduled: scheduledStart,
+      status: 'pending',
+      actualStart: null, actualEnd: null,
+      score1:0, score2:0
+    });
+    // push back availability for MAT used (use same slot.mat)
+    heapPush(heap,{avail: nextAvail, mat: matChosen});
+  }
+
+  // commit scheduled
+  state.schedule = state.schedule.concat(scheduledNew);
+  state.pending = [];
+  save(); renderAll();
+  $('statusBadge').textContent = 'Schedule generated';
 }
 
-function startClock(id) {
-    let sec = 360; // 6 minutes
-    let element = document.getElementById(id);
+$('generateBtn').onclick = generateSchedule;
 
-    let timer = setInterval(() => {
-        let m = Math.floor(sec / 60);
-        let s = sec % 60;
-        element.innerHTML = `Clock: ${m}:${s < 10 ? "0"+s : s}`;
-        sec--;
+// heap helpers
+function heapPush(heap,item){
+  heap.push(item); heap.sort((a,b)=>a.avail - b.avail || a.mat - b.mat);
+}
+function heapPop(heap){ return heap.shift(); }
 
-        if (sec < 0) clearInterval(timer);
-    }, 1000);
+// --- render schedule / mats
+function renderSchedule(){
+  // schedule list (center)
+  const arr = state.schedule.slice().sort((a,b)=> new Date(a.scheduled) - new Date(b.scheduled) || a.mat - b.mat);
+  const html = arr.map(s=>{
+    return `<div class="match-card" onclick="selectMatch('${s.id}')">
+      <div style="display:flex;justify-content:space-between"><div><strong>${s.label}</strong> • Mat ${s.mat || '-'}</div><div class="small">${s.status.toUpperCase()}</div></div>
+      <div>${s.w1name} vs ${s.w2name}</div>
+      <div class="small">Scheduled: ${formatTimeHM(s.scheduled)} • Duration: ${s.duration}m</div>
+      <div class="small">Score: ${s.score1 || 0} - ${s.score2 || 0}</div>
+    </div>`;
+  }).join('');
+  $('scheduleList').innerHTML = html || '<div class="small">No scheduled matches.</div>';
+
+  // mat grid (small previews)
+  const matsHtml = state.mats.map(m=>{
+    const next = state.schedule.filter(s=>s.mat==m.id && s.status!=='done').sort((a,b)=>new Date(a.scheduled)-new Date(b.scheduled))[0];
+    const busy = next && next.status==='running';
+    return `<div class="match-card">
+      <div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${m.label}</strong></div><div class="small ${busy? 'ok':''}">${busy? 'LIVE':'Idle'}</div></div>
+      <div class="small">Next: ${next? (next.label+' • '+next.w1name+' vs '+next.w2name) : '-'}</div>
+      <div class="small">At: ${next? formatTimeHM(next.scheduled) : '-'}</div>
+      <div style="margin-top:8px"><button class="small-btn" onclick="openMatPanel(${m.id})">Open</button></div>
+    </div>`;
+  }).join('');
+  $('matGrid').innerHTML = matsHtml;
+  refreshWrestlerSelects();
 }
 
-function resetClock(id) {
-    document.getElementById(id).innerHTML = "Clock: 6:00";
+function renderAll(){ renderTeams(); renderPending(); renderSchedule(); renderMatDetail(); }
+
+// --- match selection & mat detail / controls
+let selectedMatchId = null;
+function selectMatch(id){
+  selectedMatchId = id;
+  const s = state.schedule.find(x=>x.id===id);
+  if(!s) return alert('match not found');
+  // center open mat
+  openMatPanel(s.mat);
+  // scroll into view
+  document.querySelector('.panel').scrollIntoView({behavior:'smooth'});
+}
+
+function openMatPanel(matId){
+  $('matSelectRight').value = matId;
+  renderMatDetail();
+}
+
+function renderMatDetail(){
+  const matId = parseInt($('matSelectRight').value) || (state.mats[0] && state.mats[0].id);
+  if(!matId){ $('matDetail').innerHTML = '<div class="small">No mats available</div>'; return; }
+  const upcoming = state.schedule.filter(s=>s.mat==matId && s.status!=='done').sort((a,b)=> new Date(a.scheduled) - new Date(b.scheduled))[0];
+  if(!upcoming){
+    $('matDetail').innerHTML = `<div class="small">No upcoming matches on Mat ${matId}</div>`; return;
+  }
+  const html = `<div>
+    <div style="display:flex;justify-content:space-between"><div><strong>${upcoming.label}</strong></div><div class="small">${upcoming.status}</div></div>
+    <div style="margin-top:6px">${upcoming.w1name} <span class="score">${upcoming.score1||0}</span> — <span class="score">${upcoming.score2||0}</span> ${upcoming.w2name}</div>
+    <div class="small">Scheduled: ${formatTimeHM(upcoming.scheduled)}</div>
+    <div style="margin-top:8px" class="controls">
+      <button class="btn" onclick="startMatch('${upcoming.id}')">Start</button>
+      <button class="btn secondary" onclick="pauseMatch('${upcoming.id}')">Pause</button>
+      <button class="btn" onclick="endMatch('${upcoming.id}')">End & Score</button>
+      <button class="btn secondary" onclick="resetMatchClock('${upcoming.id}')">Reset Clock</button>
+    </div>
+    <div style="margin-top:8px">
+      <div class="small">Scoring quick-add:</div>
+      <div class="controls">
+        <button class="small-btn" onclick="addPoints('${upcoming.id}',2,1)">T2 W1</button>
+        <button class="small-btn" onclick="addPoints('${upcoming.id}',2,2)">T2 W2</button>
+        <button class="small-btn" onclick="addPoints('${upcoming.id}',1,1)">E1 W1</button>
+        <button class="small-btn" onclick="addPoints('${upcoming.id}',1,2)">E1 W2</button>
+        <button class="small-btn" onclick="addNear('${upcoming.id}',2,1)">NF2 W1</button>
+        <button class="small-btn" onclick="addNear('${upcoming.id}',3,2)">NF3 W2</button>
+      </div>
+    </div>
+    <div style="margin-top:10px" class="small">Timer: <span id="matchClock_${upcoming.id}">00:00</span></div>
+  </div>`;
+  $('matDetail').innerHTML = html;
+  updateMatchClockUI(upcoming.id);
+}
+
+// --- match timing & scoring runtime
+const runningTimers = {}; // matchId -> intervalId
+function startMatch(id){
+  const m = state.schedule.find(s=>s.id===id);
+  if(!m) return;
+  // enforce no-earlier-start: scheduled or wrestler rest or mat warmup
+  const earliest = computeEarliestStart(m);
+  const now = Date.now();
+  const startTs = Math.max(now, earliest);
+  m.actualStart = new Date(startTs).toISOString();
+  m.status = 'running';
+  save(); renderAll(); // ensure UI shows running
+  // start countdown (duration in minutes)
+  const durationSec = (m.duration||state.meta.defaultDur)*60;
+  let elapsed = 0;
+  // if actualStart earlier than now, elapsed = now - actualStart
+  elapsed = Math.floor((Date.now() - new Date(m.actualStart).getTime())/1000);
+  if(elapsed < 0) elapsed = 0;
+  if(elapsed >= durationSec) elapsed = durationSec;
+  // clear existing timer for safety
+  if(runningTimers[id]) clearInterval(runningTimers[id]);
+  runningTimers[id] = setInterval(()=>{
+    elapsed++;
+    updateMatchClockUI(id, durationSec, elapsed);
+    if(elapsed >= durationSec){
+      // enter overtime automatically - we will keep running, show overtime label
+      // to finish official must click End
+      // keep counting overtime seconds in UI
+    }
+  },1000);
+  updateMatchClockUI(id, durationSec, elapsed);
+}
+
+function computeEarliestStart(m){
+  // scheduled start
+  const scheduledMs = new Date(m.scheduled).getTime();
+  // mat availability
+  const matLast = state.schedule.filter(x=>x.mat===m.mat && x.id!==m.id && x.status==='done').sort((a,b)=>new Date(b.actualEnd||b.scheduled)-new Date(a.actualEnd||a.scheduled))[0];
+  let matAvail = scheduledMs;
+  if(matLast && matLast.actualEnd) matAvail = Math.max(matAvail, new Date(matLast.actualEnd).getTime() + (state.meta.warmupMin||0)*60000);
+  // wrestler rest windows
+  const lastEndFor = wid=>{
+    const last = state.schedule.filter(x=> (x.w1id===wid || x.w2id===wid) && x.actualEnd).sort((a,b)=>new Date(b.actualEnd)-new Date(a.actualEnd))[0];
+    return last ? new Date(last.actualEnd).getTime() : null;
+  };
+  let earliest = matAvail;
+  const le1 = lastEndFor(m.w1id); if(le1) earliest = Math.max(earliest, le1 + (state.meta.minRestMin||30)*60000);
+  const le2 = lastEndFor(m.w2id); if(le2) earliest = Math.max(earliest, le2 + (state.meta.minRestMin||30)*60000);
+  // cannot be earlier than original scheduled (no-earlier rule)
+  const orig = new Date(m.originalScheduled).getTime();
+  earliest = Math.max(earliest, orig);
+  return earliest;
+}
+
+function updateMatchClockUI(id, durationSec=null, elapsed=null){
+  const el = document.getElementById('matchClock_'+id);
+  const m = state.schedule.find(x=>x.id===id);
+  if(!el || !m) return;
+  const dur = durationSec !== null ? durationSec : (m.duration||state.meta.defaultDur)*60;
+  const startTs = m.actualStart ? new Date(m.actualStart).getTime() : null;
+  let e = elapsed !== null ? elapsed : (startTs ? Math.floor((Date.now()-startTs)/1000) : 0);
+  if(e < 0) e = 0;
+  const remaining = Math.max(dur - e, 0);
+  const over = e > dur ? e - dur : 0;
+  if(over > 0) el.textContent = 'OT +' + formatClock(over); else el.textContent = formatClock(remaining);
+}
+
+// Pause match
+function pauseMatch(id){
+  const m = state.schedule.find(s=>s.id===id);
+  if(!m) return;
+  if(runningTimers[id]){ clearInterval(runningTimers[id]); delete runningTimers[id]; m.status='pending'; save(); renderAll(); }
+}
+
+// End match
+function endMatch(id){
+  const m = state.schedule.find(s=>s.id===id);
+  if(!m) return;
+  // prompt for scores
+  const s1 = parseInt(prompt('Score for '+m.w1name, m.score1||0)) || 0;
+  const s2 = parseInt(prompt('Score for '+m.w2name, m.score2||0)) || 0;
+  m.score1 = s1; m.score2 = s2;
+  m.actualEnd = new Date().toISOString();
+  m.status = 'done';
+  // clear timer
+  if(runningTimers[id]){ clearInterval(runningTimers[id]); delete runningTimers[id]; }
+  // if overrun, push matches forward on same mat
+  const scheduledEnd = new Date(new Date(m.scheduled).getTime() + (m.duration||state.meta.defaultDur)*60000).getTime();
+  const actualEnd = new Date(m.actualEnd).getTime();
+  if(actualEnd > scheduledEnd){
+    const nextAvail = actualEnd + (state.meta.turnaroundSec||60)*1000;
+    pushMatchesForwardOnMat(m.mat, nextAvail);
+    alert('Match ended late. Future matches on this mat were pushed forward.');
+  }
+  save(); renderAll();
+}
+
+// reset clock (force actualStart null)
+function resetMatchClock(id){
+  const m = state.schedule.find(s=>s.id===id);
+  if(!m) return;
+  if(runningTimers[id]) { clearInterval(runningTimers[id]); delete runningTimers[id]; }
+  m.actualStart = null; save(); renderAll();
+}
+
+// add points
+function addPoints(id, pts, wrestlerNum){
+  const m = state.schedule.find(s=>s.id===id);
+  if(!m) return;
+  if(wrestlerNum===1) m.score1 = (m.score1||0) + pts; else m.score2 = (m.score2||0) + pts;
+  save(); renderAll();
+}
+function addNear(id, pts, wrestlerNum){
+  // near fall mapping to points: keep direct
+  addPoints(id, pts, wrestlerNum);
+}
+
+// push matches forward on mat due to overrun
+function pushMatchesForwardOnMat(mat, fromTs){
+  const upcoming = state.schedule.filter(s=>s.mat==mat && s.status!=='done').sort((a,b)=>new Date(a.scheduled)-new Date(b.scheduled));
+  let avail = fromTs;
+  for(const e of upcoming){
+    const orig = new Date(e.originalScheduled).getTime();
+    const earliest = Math.max(orig, avail);
+    e.scheduled = new Date(earliest).toISOString();
+    avail = earliest + (e.duration||state.meta.defaultDur)*60000;
+  }
+  save(); renderAll();
+}
+
+// --- Reset / seed / export
+$('resetBtn').onclick = ()=>{ if(confirm('Clear all data?')){ localStorage.removeItem(STORAGE_KEY); location.reload(); } };
+$('seedBtn').onclick = ()=>{ seedDemo(); save(); renderAll(); alert('Seeded demo data'); };
+$('exportCsvBtn').onclick = ()=>{ exportCsv(); };
+
+function seedDemo(){
+  state = {
+    meta: { startTime:"09:00", mats:4, defaultDur:6, turnaroundSec:60, warmupMin:5, minRestMin:30, maxMatches:6},
+    teams: {
+      "Tigers": [{id:'w1',name:'John Doe',grade:'11',weight:'120'},{id:'w2',name:'Kyle Smith',grade:'12',weight:'126'}],
+      "Lions": [{id:'w3',name:'Alex Roe',grade:'11',weight:'120'},{id:'w4',name:'Sam Jay',grade:'10',weight:'126'}]
+    },
+    pending: [{id:'p1',label:'A1',w1id:'w1',w2id:'w3',w1name:'John Doe (Tigers)',w2name:'Alex Roe (Lions)',duration:6,matAssign:1}],
+    schedule: [],
+    mats: [{id:1,label:'Mat 1'},{id:2,label:'Mat 2'},{id:3,label:'Mat 3'},{id:4,label:'Mat 4'}],
+    ids:{w:4,m:4}
+  };
+  save();
+}
+
+function exportCsv(){
+  const rows = [['id','label','mat','scheduled','w1','w2','dur','status','score1','score2']];
+  state.schedule.forEach(s=> rows.push([s.id,s.label,s.mat,s.scheduled,s.w1name,s.w2name,s.duration,s.status,s.score1||0,s.score2||0]));
+  const csv = rows.map(r=> r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download='schedule.csv'; a.click();
+}
+
+// initial render
+refreshWrestlerSelects();
+renderAll();
+save();
+
+// helper: formatTimeHM safely
+function formatTimeHM(iso){
+  if(!iso) return '-';
+  try{ const d=new Date(iso); return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}); }catch(e){ return '-'; }
 }
 </script>
-
 </body>
 </html>
